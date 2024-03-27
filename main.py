@@ -1,27 +1,46 @@
+from keras.models import load_model
+from time import sleep
+from keras.preprocessing.image import img_to_array
+from keras.preprocessing import image
 import cv2
-import face_recognition
+import numpy as np
 
-img1 = face_recognition.load_image_file('C:/Users/LALITHA LAVANYA/Downloads/Face_Recognition_Project-main/Face_Recognition_Project-main/obama.jpg')
-img1 = cv2.cvtColor(img1, cv2.COLOR_BGR2RGB)
-img1Test = face_recognition.load_image_file('C:/Users\LALITHA LAVANYA\Downloads\Face_Recognition_Project-main\Face_Recognition_Project-main')
-img1Test = cv2.cvtColor(img1Test, cv2.COLOR_BGR2RGB)
+face_classifier = cv2.CascadeClassifier(r'C:\Users\LALITHA LAVANYA\Documents\Emotion_Detection_CNN-main\haarcascade_frontalface_default.xml')
+classifier =load_model(r'C:\Users\LALITHA LAVANYA\Documents\Emotion_Detection_CNN-main\model.h5')
 
-face = face_recognition.face_locations(img1)[0]
-print(face)
-encodeFace = face_recognition.face_encodings(img1)[0]
-print(encodeFace)
-cv2.rectangle(img1, (face[3], face[0]), (face[1], face[2]), (255, 0, 255), 2)
+emotion_labels = ['Angry','Disgust','Fear','Happy','Neutral', 'Sad', 'Surprise']
 
-faceTest = face_recognition.face_locations(img1Test)[0]
-encodeTestFace = face_recognition.face_encodings(img1Test)[0]
-cv2.rectangle(img1Test, (faceTest[3], faceTest[0]), (faceTest[1], faceTest[2]), (255, 0, 255), 2)
+cap = cv2.VideoCapture(0)
 
-results = face_recognition.compare_faces([encodeFace], encodeTestFace)
-faceDis = face_recognition.face_distance([encodeFace], encodeTestFace)
-print(results, faceDis)
-cv2.putText(img1Test, f'{results} {round(faceDis[0], 2)}', (50, 50), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 255), 2)
 
-cv2.imshow('Obama', img1)
-cv2.imshow('Obama Test', img1Test)
-cv2.waitKey(0)
+
+while True:
+    _, frame = cap.read()
+    labels = []
+    gray = cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
+    faces = face_classifier.detectMultiScale(gray)
+
+    for (x,y,w,h) in faces:
+        cv2.rectangle(frame,(x,y),(x+w,y+h),(0,255,255),2)
+        roi_gray = gray[y:y+h,x:x+w]
+        roi_gray = cv2.resize(roi_gray,(48,48),interpolation=cv2.INTER_AREA)
+
+
+
+        if np.sum([roi_gray])!=0:
+            roi = roi_gray.astype('float')/255.0
+            roi = img_to_array(roi)
+            roi = np.expand_dims(roi,axis=0)
+
+            prediction = classifier.predict(roi)[0]
+            label=emotion_labels[prediction.argmax()]
+            label_position = (x,y)
+            cv2.putText(frame,label,label_position,cv2.FONT_HERSHEY_SIMPLEX,1,(0,255,0),2)
+        else:
+            cv2.putText(frame,'No Faces',(30,80),cv2.FONT_HERSHEY_SIMPLEX,1,(0,255,0),2)
+    cv2.imshow('Emotion Detector',frame)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cap.release()
 cv2.destroyAllWindows()
